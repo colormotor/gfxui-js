@@ -1,0 +1,7 @@
+{
+  "name": "gfxui",
+  "version": "1.0.0",
+  "dependencies": {
+  },
+  "main": "gfxui.js"
+}

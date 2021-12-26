@@ -117,7 +117,7 @@ gfxui.end = () => {
 
 gfxui.draw = () => {
   ui.ctx.resetTransform();
-  fill_rect(rect_from_circle(gfxui.state.mousepos, 3, '#00FF00'));
+  // fill_rect(rect_from_circle(gfxui.state.mousepos, 3, '#00FF00'));
   ui.drawlist.map(f => f());
 }
 

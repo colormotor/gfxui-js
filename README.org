@@ -1,2 +1,6 @@
 #+title: GFXUI-js
 Javascript port of GFX-ui [[https://github.com/colormotor/gfx_ui]].
+
+Demo here: [[https://www.enist.org/tests/gfxui/]]
+
+Check the ~gfxui.demo()~ function for usage examples.

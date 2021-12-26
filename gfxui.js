@@ -50,6 +50,7 @@ const _mousemove = (event) => {
   if (ui.ctx != null) {
     var rect = ui.ctx.canvas.getBoundingClientRect();
     gfxui.state.mousepos = [event.offsetX, event.offsetY];
+    event.preventDefault();
   }
 }
 
@@ -57,6 +58,7 @@ const _mousedown = (event) => {
   if (event.which) {
     gfxui.state.dragging = true;
     gfxui.state.clicked = true;
+    event.preventDefault();
   }
 }
 
@@ -64,6 +66,7 @@ const _mouseup = (event) => {
   if (event.which) {
     gfxui.state.dragging = false;
     ui.active = null;
+    event.preventDefault();
   }
 }
 
@@ -91,11 +94,16 @@ gfxui.modified = () => {
 
 /** Initialize UI */
 gfxui.init = () => {
-  document.addEventListener('mousemove', _mousemove);
-  document.addEventListener('mouseup', _mouseup);
-  document.addEventListener('mousedown', _mousedown);
-  document.addEventListener('keydown', _keydown);
-  document.addEventListener('keyup', _keyup);
+  const capt = false;
+  document.addEventListener('mousemove', _mousemove, capt);
+  document.addEventListener('mouseup', _mouseup, capt);
+  document.addEventListener('mousedown', _mousedown, capt);
+  document.addEventListener("touchstart", _mousedown, capt);
+  document.addEventListener("touchend", _mouseup, capt);
+  document.addEventListener("touchcancel", _mouseup, capt);
+  document.addEventListener("touchmove", _mousemove, capt);
+  document.addEventListener('keydown', _keydown, capt);
+  document.addEventListener('keyup', _keyup, capt);
 }
 
 /**
@@ -397,8 +405,8 @@ const demo = () => {
   ui.ctx.moveTo(...demo.bezier_pts[0]);
   ui.ctx.bezierCurveTo(demo.bezier_pts[0][0] + Math.cos(demo.bezier_tangents[0][0])*demo.bezier_tangents[0][1],
                        demo.bezier_pts[0][1] + Math.sin(demo.bezier_tangents[0][0])*demo.bezier_tangents[0][1],
-                       demo.bezier_pts[1][0] - Math.cos(demo.bezier_tangents[1][0])*demo.bezier_tangents[1][1],
-                       demo.bezier_pts[1][1] - Math.sin(demo.bezier_tangents[1][0])*demo.bezier_tangents[1][1],
+                       demo.bezier_pts[1][0] + Math.cos(demo.bezier_tangents[1][0])*demo.bezier_tangents[1][1],
+                       demo.bezier_pts[1][1] + Math.sin(demo.bezier_tangents[1][0])*demo.bezier_tangents[1][1],
                        ...demo.bezier_pts[1]);
   ui.ctx.stroke();
 

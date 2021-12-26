@@ -43,14 +43,17 @@ const ui = {
   ctx: null,
   drawlist: [],
   active: null,
-  cur_id: 0
+  cur_id: 0,
+  statusstr: ''
 }
 
 const _mousemove = (event) => {
   if (ui.ctx != null) {
     var rect = ui.ctx.canvas.getBoundingClientRect();
     gfxui.state.mousepos = [event.offsetX, event.offsetY];
-    event.preventDefault();
+    // event.preventDefault();
+    // event.stopPropagation();
+    event.returnValue = false;
   }
 }
 
@@ -58,7 +61,9 @@ const _mousedown = (event) => {
   if (event.which) {
     gfxui.state.dragging = true;
     gfxui.state.clicked = true;
-    event.preventDefault();
+    // event.preventDefault();
+    // event.stopPropagation();
+    event.returnValue = false;
   }
 }
 
@@ -66,7 +71,9 @@ const _mouseup = (event) => {
   if (event.which) {
     gfxui.state.dragging = false;
     ui.active = null;
-    event.preventDefault();
+    // event.preventDefault();
+    // event.stopPropagation();
+    event.returnValue = false;
   }
 }
 
@@ -98,10 +105,10 @@ gfxui.init = () => {
   document.addEventListener('mousemove', _mousemove, capt);
   document.addEventListener('mouseup', _mouseup, capt);
   document.addEventListener('mousedown', _mousedown, capt);
-  document.addEventListener("touchstart", _mousedown, capt);
-  document.addEventListener("touchend", _mouseup, capt);
-  document.addEventListener("touchcancel", _mouseup, capt);
-  document.addEventListener("touchmove", _mousemove, capt);
+  //document.addEventListener("touchstart", _mousedown, capt);
+  //document.addEventListener("touchend", _mouseup, capt);
+  //document.addEventListener("touchcancel", _mouseup, capt);
+  //document.addEventListener("touchmove", _mousemove, capt);
   document.addEventListener('keydown', _keydown, capt);
   document.addEventListener('keyup', _keyup, capt);
 }
@@ -366,6 +373,9 @@ gfxui.draw_dragger = (rect, clr) => {
   stroke_rounded_rect(rect, cfg.corner_rounding, cfg.stroke_color, cfg.line_width * 2);
 }
 
+gfxui.show_status = () => {
+  gfxui.text([20, 20], ui.statusstr);
+}
 const demo = () => {
   /// trick to mimic C/C++ static variables
   if (typeof demo.init == 'undefined') {

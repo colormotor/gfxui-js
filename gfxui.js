@@ -13,7 +13,7 @@
  * */
 'use strict'
 
-const gfxui = function() {}
+const gfxui = function() { }
 
 /// Configuration/appearance
 gfxui.cfg = {
@@ -46,8 +46,6 @@ const ui = {
   cur_id: 0
 }
 
-
-
 const _mousemove = (event) => {
   if (ui.ctx != null) {
     var rect = ui.ctx.canvas.getBoundingClientRect();
@@ -69,12 +67,12 @@ const _mouseup = (event) => {
   }
 }
 
-const _keypressed = (event) => {
+const _keydown = (event) => {
   gfxui.state.alt_key = event.altKey;
   gfxui.state.shift_key = event.shiftKey;
 }
 
-const _keyreleased = (event) => {
+const _keyup = (event) => {
   gfxui.state.alt_key = event.altKey;
   gfxui.state.shift_key = event.shiftKey;
 }
@@ -96,6 +94,8 @@ gfxui.init = () => {
   document.addEventListener('mousemove', _mousemove);
   document.addEventListener('mouseup', _mouseup);
   document.addEventListener('mousedown', _mousedown);
+  document.addEventListener('keydown', _keydown);
+  document.addEventListener('keyup', _keyup);
 }
 
 /**
@@ -210,11 +210,13 @@ gfxui.length_handle = (thetaLen, pos, startTheta = 0, length_range = [], theta_r
 
       if (length_range.length == 2)
         len = Math.min(Math.max(length(gfxui.state.mousepos, pos), length_range[0]), length_range[1]);
+      else
+        len = length(gfxui.state.mousepos, pos);
       gfxui.state.modified = true;
     }
   }
   // Specify object
-  const hp = handle_pos(pos, thetaLen[0] + startTheta, thetaLen[1]);
+  const hp = handle_pos(pos, theta + startTheta, len);
   const rect = rect_from_circle(hp, cfg.dragger_size * 0.8);
   const hovered = point_in_rect(gfxui.state.mousepos, rect);
 
@@ -253,6 +255,9 @@ gfxui.handle = (theta, pos, length, startTheta = 0, theta_range = [], selected =
  * - [[1, 0, 0], [0, 1, 0], [0, 0, 1]] for the matrix case (Array of Arrays)
  * - {x:[1, 0], y:[0, 1], pos:[0, 0]} for the object case.
  * The function returns the same format used as an input
+ * Pressing alt while manipulating handles, forces them to the same length.
+ * Pressing shift forces them to a length proportional to when interaction started.
+ *
  * @param {any} t transform
  * @param {number} scale scale factor for handles representing transform (e.g 100 will result in handles with length 100 with the identity)
  * @param {bool} ortho forces the transform to be orthogonal
@@ -353,6 +358,76 @@ gfxui.draw_dragger = (rect, clr) => {
   stroke_rounded_rect(rect, cfg.corner_rounding, cfg.stroke_color, cfg.line_width * 2);
 }
 
+const demo = () => {
+  /// trick to mimic C/C++ static variables
+  if (typeof demo.init == 'undefined') {
+    demo.init = true;
+    demo.pts = [[100, 300], [200, 300], [150, 400], [300,300]];
+    demo.mat = [[1, 0, 30],
+    [0, 1, 30],
+    [0, 0, 1]]; // Matrix example
+    demo.tsm = { x: [1, 0], y: [0, 1], pos: [300, 30] }; // Transform example
+    demo.bezier_pts = [[200, 450], [400, 350]];
+    demo.bezier_tangents = [[0, 100], [0, 100]];
+    demo.arc_theta = 0.5;
+  }
+
+  // Polyline with draggers
+  for (var i = 0; i < demo.pts.length; i++) {
+    demo.pts[i] = gfxui.dragger(demo.pts[i]);
+  }
+
+  ui.ctx.strokeStyle = '#000000';
+  ui.ctx.lineWidth = 7;
+  ui.ctx.beginPath();
+  ui.ctx.moveTo(...demo.pts[0]);
+  for (const p of demo.pts.slice(1))
+    ui.ctx.lineTo(...p);
+  ui.ctx.stroke();
+
+  // Bezier curve with length handles
+  for (var i = 0; i < demo.bezier_pts.length; i++) {
+    demo.bezier_pts[i] = gfxui.dragger(demo.bezier_pts[i]);
+  }
+  for (var i = 0; i < demo.bezier_tangents.length; i++) {
+    demo.bezier_tangents[i] = gfxui.length_handle(demo.bezier_tangents[i], demo.bezier_pts[i]);
+  }
+
+  ui.ctx.beginPath();
+  ui.ctx.moveTo(...demo.bezier_pts[0]);
+  ui.ctx.bezierCurveTo(demo.bezier_pts[0][0] + Math.cos(demo.bezier_tangents[0][0])*demo.bezier_tangents[0][1],
+                       demo.bezier_pts[0][1] + Math.sin(demo.bezier_tangents[0][0])*demo.bezier_tangents[0][1],
+                       demo.bezier_pts[1][0] - Math.cos(demo.bezier_tangents[1][0])*demo.bezier_tangents[1][1],
+                       demo.bezier_pts[1][1] - Math.sin(demo.bezier_tangents[1][0])*demo.bezier_tangents[1][1],
+                       ...demo.bezier_pts[1]);
+  ui.ctx.stroke();
+
+  // Arc with handle
+  const p = [300, 500];
+  const r = 150;
+  demo.arc_theta = gfxui.handle(demo.arc_theta, p, r);
+  ui.ctx.resetTransform();
+  ui.ctx.fillStyle = '#0099FF';
+  ui.ctx.beginPath();
+  ui.ctx.moveTo(p[0], p[1]);
+  ui.ctx.arc(p[0], p[1], r, 0, demo.arc_theta);
+  ui.ctx.closePath();
+  ui.ctx.fill();
+
+  // Affine transform with matrix (orthogonal)
+  demo.mat = gfxui.affine(demo.mat, 100);
+  ui.ctx.setTransform(demo.mat[0][0], demo.mat[1][0], demo.mat[0][1], demo.mat[1][1], demo.mat[0][2], demo.mat[1][2]) // kinda awkward
+  gfxui.draw_house();
+  ui.ctx.resetTransform();
+
+  // Affine transform with object
+  demo.tsm = gfxui.affine(demo.tsm, 100, false);
+  ui.ctx.setTransform(...demo.tsm.x, ...demo.tsm.y, ...demo.tsm.pos); // also kinda awkward
+  gfxui.draw_house('#FF0000');
+  ui.ctx.resetTransform();
+}
+
+gfxui.demo = demo;
 
 const fill_rect = (rect, color) => {
   ui.drawlist.push(() => {

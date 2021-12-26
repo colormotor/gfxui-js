@@ -43,6 +43,7 @@ const ui = {
   ctx: null,
   drawlist: [],
   active: null,
+  hovered: null,
   cur_id: 0,
   statusstr: ''
 }
@@ -100,7 +101,7 @@ gfxui.modified = () => {
 }
 
 /** Initialize UI */
-gfxui.init = () => {
+gfxui.init = (icon_font_url='url(icons.woff)') => {
   const capt = false;
   document.addEventListener('mousemove', _mousemove, capt);
   document.addEventListener('mouseup', _mouseup, capt);
@@ -111,6 +112,17 @@ gfxui.init = () => {
   //document.addEventListener("touchmove", _mousemove, capt);
   document.addEventListener('keydown', _keydown, capt);
   document.addEventListener('keyup', _keyup, capt);
+
+  // Load icon font
+  var icon_font = new FontFace('Icon Font', icon_font_url);
+  icon_font.load().then(function(loaded_face) {
+	document.fonts.add(loaded_face);
+  	document.body.style.fontFamily = '"Icon Font", Arial';
+    console.log('Loaded icon font');
+  }).catch(function(error) {
+    console.log(error)
+	// error occurred
+  });
 }
 
 /**
@@ -120,6 +132,9 @@ gfxui.init = () => {
 gfxui.begin = (ctx = null) => {
   ui.cur_id = 0;
   ui.drawlist = [];
+  //ui.active = null;
+  ui.hovered = null;
+
   if (ctx == null)
     ui.ctx = document.getElementById('canvas').getContext('2d');
   else
@@ -128,6 +143,10 @@ gfxui.begin = (ctx = null) => {
 
 gfxui.end = () => {
   gfxui.state.clicked = false;
+}
+
+gfxui.has_focus = () => {
+  return ui.active!=null || ui.hovered!=null;
 }
 
 gfxui.draw = () => {
@@ -183,6 +202,9 @@ gfxui.dragger = (pos, selected = false, size = -1) => {
   const rect = rect_from_circle(pos, size);
   const hovered = point_in_rect(gfxui.state.mousepos, rect);
 
+  if (hovered)
+    ui.hovered = id;
+
   if (gfxui.state.clicked && hovered)
     ui.active = id;
 
@@ -234,7 +256,8 @@ gfxui.length_handle = (thetaLen, pos, startTheta = 0, length_range = [], theta_r
   const hp = handle_pos(pos, theta + startTheta, len);
   const rect = rect_from_circle(hp, cfg.dragger_size * 0.8);
   const hovered = point_in_rect(gfxui.state.mousepos, rect);
-
+  if (hovered)
+    ui.hovered = id;
   if (gfxui.state.clicked && hovered)
     ui.active = id;
 
@@ -351,12 +374,12 @@ gfxui.affine = (t, scale = 1, ortho = true, selected) => {
   return { x: x, y: y, pos: pos };
 }
 
-gfxui.text = (pos, txt, clr = null, font = 0) => {
+gfxui.text = (pos, txt, clr = null, align='left', font = 0) => {
   if (clr == null)
     clr = gfxui.cfg.text_color;
   if (font == null)
     font = gfxui.cfg.text_font;
-  draw_text(pos, txt, clr, font);
+  draw_text(pos, txt, clr, font, align);
 }
 
 gfxui.line = (a, b, clr = null, lw = 0) => {
@@ -376,20 +399,74 @@ gfxui.draw_dragger = (rect, clr) => {
 gfxui.show_status = () => {
   gfxui.text([20, 20], ui.statusstr);
 }
+
+gfxui.toolbar = (items, selected=0, horizontal=false, pos=[0,0], size=24 ) => {
+  const id = gfxui.get_id();
+
+  var x = pos[0];
+  var y = pos[1];
+  const pad = 11;
+  const border = 2;
+  const extent = (size+pad)*items.length + 2*(items.length-1)+border*2;
+
+  if (horizontal)
+    fill_rounded_rect([[x, y], [x+extent, y+size+pad+border*2]], 4, '#222222');
+  else
+    fill_rounded_rect([[x, y], [x+size+pad+border*2, y+extent]], 4, '#222222');
+  x += border;
+  y += border;
+  for( var i = 0; i < items.length; i++ ){
+    let rect = [[x, y], [x+size+pad, y+size+pad]];
+    const hovered = point_in_rect(gfxui.state.mousepos, rect);
+
+    if (hovered)
+      ui.hovered = id;
+
+    if (gfxui.state.clicked && hovered)
+    {
+      selected = i;
+      //ui.active = id;
+    }
+
+
+    //fill_rect(rect, '#777777');
+    if (i==selected || hovered){
+      var bg = '#000000';
+      var txtclr = '#FFFFFF';
+    }else{
+      var bg = '#555555';
+      var txtclr = '#DDDDDD';
+    }
+    fill_rounded_rect(rect, 2, bg); //fill_rounded_rect(rect, '#FF0000');
+    //fill_rect([[220, 120], [230, 200]], '#FF0000');
+    var clr =
+    gfxui.text([x+size/2+pad/2, y+size*0.9+pad/2], items[i], txtclr, 'center', size + 'px "Icon Font"');
+    if (horizontal)
+     x += size+pad+2;
+    else
+     y += size+pad+2;
+  }
+
+  return selected;
+}
+
 const demo = () => {
   /// trick to mimic C/C++ static variables
   if (typeof demo.init == 'undefined') {
     demo.init = true;
-    demo.pts = [[100, 300], [200, 300], [150, 400], [300,300]];
-    demo.mat = [[1, 0, 30],
+    demo.pts = [[100, 300], [200, 300], [250, 400], [300,300]];
+    demo.mat = [[1, 0, 60],
     [0, 1, 30],
     [0, 0, 1]]; // Matrix example
     demo.tsm = { x: [1, 0], y: [0, 1], pos: [300, 30] }; // Transform example
     demo.bezier_pts = [[200, 450], [400, 350]];
     demo.bezier_tangents = [[0, 100], [0, 100]];
     demo.arc_theta = 0.5;
+    demo.tool = 0;
   }
 
+  demo.tool = gfxui.toolbar("ab", demo.tool);
+  //
   // Polyline with draggers
   for (var i = 0; i < demo.pts.length; i++) {
     demo.pts[i] = gfxui.dragger(demo.pts[i]);
@@ -443,6 +520,9 @@ const demo = () => {
   ui.ctx.setTransform(...demo.tsm.x, ...demo.tsm.y, ...demo.tsm.pos); // also kinda awkward
   gfxui.draw_house('#FF0000');
   ui.ctx.resetTransform();
+
+  if (demo.tool==1 && !gfxui.has_focus() && gfxui.state.clicked)
+    demo.pts.push(gfxui.state.mousepos);
 }
 
 gfxui.demo = demo;
@@ -473,10 +553,11 @@ const draw_line = (a, b, color, lw = 1) => {
   })
 }
 
-const draw_text = (pos, txt, color, font) => {
+const draw_text = (pos, txt, color, font, align='left') => {
   ui.drawlist.push(() => {
     ui.ctx.fillStyle = color;
     ui.ctx.font = font;
+    ui.ctx.textAlign = align;
     ui.ctx.fillText(txt, pos[0], pos[1]);
   })
 }

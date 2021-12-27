@@ -20,7 +20,7 @@ gfxui.cfg = {
   dragger_size: 10,
   line_width: 1,
   corner_rounding: 5,
-  hover_color: '#FF0000',
+  hover_color: '#0055CC',
   fill_color: '#777777',
   stroke_color: '#222222',
   selected_color: '#0099FF',
@@ -36,6 +36,7 @@ gfxui.state = {
   shift_key: false,
   alt_key: false,
   mousepos: [0, 0],
+  mouse_delta: [0, 0]
 }
 
 /// Internal state
@@ -45,12 +46,16 @@ const ui = {
   active: null,
   hovered: null,
   cur_id: 0,
-  statusstr: ''
+  statusstr: '',
+  selector_dragging: false,
+  selector_pos: [0, 0]
 }
 
 const _mousemove = (event) => {
   if (ui.ctx != null) {
     var rect = ui.ctx.canvas.getBoundingClientRect();
+    gfxui.state.mouse_delta = [event.offsetX - gfxui.state.mousepos[0],
+                               event.offsetY - gfxui.state.mousepos[1]];
     gfxui.state.mousepos = [event.offsetX, event.offsetY];
     // event.preventDefault();
     // event.stopPropagation();
@@ -60,6 +65,10 @@ const _mousemove = (event) => {
 
 const _mousedown = (event) => {
   if (event.which) {
+    if (!gfxui.state.dragging){
+      gfxui.state.mousepos = [event.offsetX, event.offsetY];
+      gfxui.state.mouse_delta = [0, 0];
+    }
     gfxui.state.dragging = true;
     gfxui.state.clicked = true;
     // event.preventDefault();
@@ -99,6 +108,36 @@ gfxui.get_id = () => {
 gfxui.modified = () => {
   return gfxui.state.modified;
 }
+
+/**
+ * @returns if mouse is dragging
+ */
+gfxui.dragging = () => {
+  return gfxui.state.dragging;
+}
+
+/**
+ * @returns if mouse has been clicked
+ */
+gfxui.clicked = () => {
+  return gfxui.state.clicked;
+}
+
+/**
+ * @returns mouse delta
+ */
+gfxui.mouse_delta = () => {
+  return gfxui.state.mouse_delta;
+}
+
+/**
+ * @returns mouse delta
+ */
+gfxui.mouse_pos = () => {
+  return gfxui.state.mouse_pos;
+}
+
+
 
 /** Initialize UI */
 gfxui.init = (icon_font_url='url(icons.woff)') => {
@@ -382,12 +421,12 @@ gfxui.text = (pos, txt, clr = null, align='left', font = 0) => {
   draw_text(pos, txt, clr, font, align);
 }
 
-gfxui.line = (a, b, clr = null, lw = 0) => {
+gfxui.line = (a, b, clr = null, lw = 0, dash=[]) => {
   if (clr == null)
     clr = gfxui.cfg.stroke_color;
   if (lw == 0)
     lw = gfxui.cfg.line_width;
-  draw_line(a, b, clr, lw);
+  draw_line(a, b, clr, lw, dash);
 }
 
 gfxui.draw_dragger = (rect, clr) => {
@@ -428,17 +467,14 @@ gfxui.toolbar = (items, selected=0, horizontal=false, pos=[0,0], size=24 ) => {
       //ui.active = id;
     }
 
-
-    //fill_rect(rect, '#777777');
     if (i==selected || hovered){
       var bg = '#000000';
-      var txtclr = '#FFFFFF';
+      var txtclr = gfxui.cfg.selected_color; //'#FFFFFF';
     }else{
       var bg = '#555555';
-      var txtclr = '#DDDDDD';
+      var txtclr = '#BBBBBB';
     }
-    fill_rounded_rect(rect, 2, bg); //fill_rounded_rect(rect, '#FF0000');
-    //fill_rect([[220, 120], [230, 200]], '#FF0000');
+    fill_rounded_rect(rect, 2, bg);
     var clr =
     gfxui.text([x+size/2+pad/2, y+size*0.9+pad/2], items[i], txtclr, 'center', size + 'px "Icon Font"');
     if (horizontal)
@@ -448,6 +484,35 @@ gfxui.toolbar = (items, selected=0, horizontal=false, pos=[0,0], size=24 ) => {
   }
 
   return selected;
+}
+
+gfxui.make_flip_rect = (a, b) => {
+  return [[Math.min(a[0], b[0]), Math.min(a[1], b[1])],
+          [Math.max(a[0], b[0]), Math.max(a[1], b[1])]];
+}
+
+gfxui.selector = () =>{
+  gfxui.state.modified = false;
+  const none = [];
+
+  if (gfxui.state.clicked && !gfxui.has_focus()) {
+    ui.selector_dragging = true;
+    ui.selector_pos = gfxui.state.mousepos;
+    gfxui.state.modified = true;
+    console.log(gfxui.state.mousepos);
+  }
+
+  if(gfxui.state.dragging && ui.selector_dragging){
+    gfxui.state.modified = true;
+    const rect = gfxui.make_flip_rect(ui.selector_pos, gfxui.state.mousepos);
+    stroke_rect(rect, gfxui.cfg.selected_color, 1, [2, 5]);
+    return rect;
+  }
+
+  if(!gfxui.state.dragging)
+    ui.selector_dragging = false;
+
+  return none;
 }
 
 const demo = () => {
@@ -511,7 +576,7 @@ const demo = () => {
 
   // Affine transform with matrix (orthogonal)
   demo.mat = gfxui.affine(demo.mat, 100);
-  ui.ctx.setTransform(demo.mat[0][0], demo.mat[1][0], demo.mat[0][1], demo.mat[1][1], demo.mat[0][2], demo.mat[1][2]) // kinda awkward
+  ui.ctx.setTransform(demo.mat[0][0], demo.mat[1][0], demo.mat[0][1], demo.mat[1][1], demo.mat[0][2], demo.mat[1][2]);
   gfxui.draw_house();
   ui.ctx.resetTransform();
 
@@ -521,8 +586,14 @@ const demo = () => {
   gfxui.draw_house('#FF0000');
   ui.ctx.resetTransform();
 
-  if (demo.tool==1 && !gfxui.has_focus() && gfxui.state.clicked)
-    demo.pts.push(gfxui.state.mousepos);
+  if (demo.tool==1){
+    if (!gfxui.has_focus() && gfxui.state.clicked)
+      demo.pts.push(gfxui.state.mousepos);
+  }else{
+    if (!gfxui.has_focus()){
+      var selector_rect = gfxui.selector();
+    }
+  }
 }
 
 gfxui.demo = demo;
@@ -534,22 +605,26 @@ const fill_rect = (rect, color) => {
   })
 }
 
-const stroke_rect = (rect, color, lw = 1) => {
+const stroke_rect = (rect, color, lw = 1, dash=[]) => {
   ui.drawlist.push(() => {
     ui.ctx.strokeStyle = color;
     ui.ctx.lineWidth = lw;
+    ui.ctx.setLineDash(dash);
     ui.ctx.strokeRect(rect[0][0], rect[0][1], rect[1][0] - rect[0][0], rect[1][1] - rect[0][1]);
+    ui.ctx.setLineDash([]);
   })
 }
 
-const draw_line = (a, b, color, lw = 1) => {
+const draw_line = (a, b, color, lw = 1, dash=[]) => {
   ui.drawlist.push(() => {
     ui.ctx.strokeStyle = color;
     ui.ctx.lineWidth = lw;
+    ui.ctx.setLineDash(dash);
     ui.ctx.beginPath();
     ui.ctx.moveTo(a[0], a[1]);
     ui.ctx.lineTo(b[0], b[1]);
     ui.ctx.stroke();
+    ui.ctx.setLineDash([]);
   })
 }
 

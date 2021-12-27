@@ -189,9 +189,11 @@ gfxui.has_focus = () => {
 }
 
 gfxui.draw = () => {
+  ui.ctx.save();
   ui.ctx.resetTransform();
   // fill_rect(rect_from_circle(gfxui.state.mousepos, 3, '#00FF00'));
   ui.drawlist.map(f => f());
+  ui.ctx.restore();
 }
 
 gfxui.draw_house = (clr = '#000000', pos = [0, 0]) => {

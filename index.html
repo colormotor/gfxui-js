@@ -1,0 +1,125 @@
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/npm/p5@1.4.0/lib/p5.js"></script>
+    <script src="./gfxui.js"></script>
+
+    <script>
+      /// Data modified by UI 
+      var data = {}; 
+        data.pts = [[100, 300], [200, 300], [250, 400], [300, 300]];
+        data.mat = [[1, 0, 60],
+        [0, 1, 30],
+        [0, 0, 1]]; // Matrix example
+        data.tsm = { x: [1, 0], y: [0, 1], pos: [300, 30] }; // Transform example
+        data.bezier_pts = [[200, 450], [400, 350]];
+        data.bezier_tangents = [[0, 100], [0, 100]];
+        data.arc_theta = 0.5;
+        data.tool = 0;
+
+      
+      function setup() {
+        createCanvas(windowWidth, windowHeight);
+        gfxui.init();
+      }
+
+      function draw() {
+        
+        const ctx = drawingContext; // p5js canvas drawing context
+        background(255, 255, 255);
+
+        // UI functions should be called between a gfxui.begin and gfxui pair
+        gfxui.begin(ctx); 
+
+        // Toolbar, select between selection (0) and adding points to a polyline (1)
+        // Using this will require a web font with icons (here icons.woff)
+        data.tool = gfxui.toolbar("ab", data.tool);
+        gfxui.tooltip("Select pencil to add points to polyline");
+
+        // Edit points of a polyline with gfxui.dragger
+        for (var i = 0; i < data.pts.length; i++) {
+            data.pts[i] = gfxui.dragger(data.pts[i]);
+        }
+
+        // Draw the polyline with p5js
+        stroke(0);
+        beginShape();
+        strokeWeight(3.0);
+        for (const p of data.pts)
+            vertex(...p);
+        endShape();
+
+        // Bezier curve using draggers for its endpoints
+        for (var i = 0; i < data.bezier_pts.length; i++) {
+            data.bezier_pts[i] = gfxui.dragger(data.bezier_pts[i]);
+        }
+        // and length_handle for the control points
+        for (var i = 0; i < data.bezier_tangents.length; i++) {
+            data.bezier_tangents[i] = gfxui.length_handle(data.bezier_tangents[i], data.bezier_pts[i]);
+        }
+
+        bezier(...data.bezier_pts[0],
+               data.bezier_pts[0][0] + Math.cos(data.bezier_tangents[0][0]) * data.bezier_tangents[0][1],
+               data.bezier_pts[0][1] + Math.sin(data.bezier_tangents[0][0]) * data.bezier_tangents[0][1],
+               data.bezier_pts[1][0] + Math.cos(data.bezier_tangents[1][0]) * data.bezier_tangents[1][1],
+               data.bezier_pts[1][1] + Math.sin(data.bezier_tangents[1][0]) * data.bezier_tangents[1][1],
+               ...data.bezier_pts[1]);
+
+        // Using canvas now so save context
+        ctx.save();
+        
+        // Canvas arc with handle
+        const p = [300, 500];
+        const r = 150;
+        
+        data.arc_theta = gfxui.handle(data.arc_theta, p, r);
+        gfxui.tooltip("Drag to change angle")
+        ctx.resetTransform();
+        ctx.fillStyle = '#0099FF';
+        ctx.beginPath();
+        ctx.moveTo(p[0], p[1]);
+        ctx.arc(p[0], p[1], r, 0, data.arc_theta);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Affine transform with matrix (orthogonal)
+        data.mat = gfxui.affine(data.mat, 100);
+        gfxui.tooltip("press ALT to force uniform scale, SHIFT to keep current proportions");
+
+        ui.ctx.setTransform(data.mat[0][0], data.mat[1][0], data.mat[0][1], data.mat[1][1], data.mat[0][2], data.mat[1][2]);
+        gfxui.draw_house();
+        ui.ctx.resetTransform();
+
+        // Affine transform with object (stored as {x:[x,y], y:[x,y], pos:[x,y]})
+        data.tsm = gfxui.affine(data.tsm, 100, false);
+        gfxui.tooltip("press ALT to force uniform scale, SHIFT to keep current proportions");
+        
+        ui.ctx.setTransform(...data.tsm.x, ...data.tsm.y, ...data.tsm.pos); // also kinda awkward
+        gfxui.draw_house('#FF0000');
+        ui.ctx.resetTransform();
+
+        // Restore context so we don't mess with p5js
+        ctx.restore();
+
+        if (data.tool == 1) {
+            // If the pencil tool is selected (1) add points when no other control has focus
+            if (!gfxui.has_focus() && gfxui.state.clicked)
+            data.pts.push(gfxui.state.mousepos);
+        } else {
+            // Otherwise when no other control has focus draw a selector (doesn't select here)
+            if (!gfxui.has_focus()) {
+            var selector_rect = gfxui.selector();
+            }
+        }
+        
+        gfxui.end();
+
+        // Now actually draw the UI
+        gfxui.draw();
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+    </main>
+  </body>
+</html>

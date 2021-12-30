@@ -1,6 +1,11 @@
 #+title: GFXUI-js
-Javascript port of GFX-ui [[https://github.com/colormotor/gfx_ui]].
 
-Demo here: [[https://www.enist.org/tests/gfxui/]]
+A minimal geometry editing UI for Canvas, with an "immediate mode" programming interface.
+This is losely a javascript port of code I previosuly developed for C++: [[https://github.com/colormotor/gfx_ui]].
 
-Check the ~gfxui.demo()~ function for usage examples.
+- Basic point and handle dragging
+- Manipulating affine transforms
+- Rect selection
+- Icon toolbars
+
+A demo and example code (in page source) can be found here: https://colormotor.github.io/gfxui-js/

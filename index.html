@@ -6,16 +6,16 @@
     <script>
       /// Data modified by UI 
       var data = {}; 
-        data.pts = [[100, 300], [200, 300], [250, 400], [300, 300]];
-        data.mat = [[1, 0, 60],
+      data.pts = [[100, 300], [200, 300], [250, 400], [300, 300]];
+      data.mat = [[1, 0, 60],
         [0, 1, 30],
         [0, 0, 1]]; // Matrix example
-        data.tsm = { x: [1, 0], y: [0, 1], pos: [300, 30] }; // Transform example
-        data.bezier_pts = [[200, 450], [400, 350]];
-        data.bezier_tangents = [[0, 100], [0, 100]];
-        data.arc_theta = 0.5;
-        data.tool = 0;
-
+      data.tsm = { x: [1, 0], y: [0, 1], pos: [300, 30] }; // Transform example
+      data.bezier_pts = [[200, 450], [400, 350]];
+      data.bezier_tangents = [[0, 100], [0, 100]];
+      data.arc_theta = 0.5;
+      data.tool = 0;
+      data.selected = [];
       
       function setup() {
         createCanvas(windowWidth, windowHeight);
@@ -23,24 +23,32 @@
       }
 
       function draw() {
-        
-        const ctx = drawingContext; // p5js canvas drawing context
         background(255, 255, 255);
 
+        // we need the p5js canvas drawing context in order to pass it to gfxui
+        const ctx = drawingContext; 
+        
         // UI functions should be called between a gfxui.begin and gfxui pair
         gfxui.begin(ctx); 
 
-        // Toolbar, select between selection (0) and adding points to a polyline (1)
+        // Toolbar, selects between selection (0) and adding points to a polyline (1)
         // Using this will require a web font with icons (here icons.woff)
+        // a different font can be passed to gfxui.init()
         data.tool = gfxui.toolbar("ab", data.tool);
         gfxui.tooltip("Select pencil to add points to polyline");
 
+        // We keep track of wether any point of interest is being dragged for doing multiple selection later
+        let dragging_points = false; 
+      
         // Edit points of a polyline with gfxui.dragger
         for (var i = 0; i < data.pts.length; i++) {
-            data.pts[i] = gfxui.dragger(data.pts[i]);
+          data.pts[i] = gfxui.dragger(data.pts[i]);
+          if (gfxui.modified())
+            dragging_points = true;
         }
 
-        // Draw the polyline with p5js
+        // and draw the polyline with p5js
+        // Note that the gfxui widgets will be drawn on top of this, since the actual drawing happens until "gfxui.end()" 
         stroke(0);
         beginShape();
         strokeWeight(3.0);
@@ -50,7 +58,9 @@
 
         // Bezier curve using draggers for its endpoints
         for (var i = 0; i < data.bezier_pts.length; i++) {
-            data.bezier_pts[i] = gfxui.dragger(data.bezier_pts[i]);
+          data.bezier_pts[i] = gfxui.dragger(data.bezier_pts[i]);
+          if (gfxui.modified()) // Also allow multiple-dragging these
+            dragging_points = true;
         }
         // and length_handle for the control points
         for (var i = 0; i < data.bezier_tangents.length; i++) {
@@ -64,7 +74,7 @@
                data.bezier_pts[1][1] + Math.sin(data.bezier_tangents[1][0]) * data.bezier_tangents[1][1],
                ...data.bezier_pts[1]);
 
-        // Using canvas now so save context
+        // We will use canvas now to draw, so save context
         ctx.save();
         
         // Canvas arc with handle
@@ -105,16 +115,57 @@
             if (!gfxui.has_focus() && gfxui.state.clicked)
             data.pts.push(gfxui.state.mousepos);
         } else {
-            // Otherwise when no other control has focus draw a selector (doesn't select here)
-            if (!gfxui.has_focus()) {
-            var selector_rect = gfxui.selector();
+            // Otherwise draw a selector. This only does something if no other previous called widget grabbed focus.
+            // The logic here is a bit more bloated:
+            // Get the selector rect
+            let selector_rect = gfxui.selector();
+            // And modified() tells us if we are actually selecting
+            let selecting = gfxui.modified();
+            // If we are...
+            if (selecting) {
+              // Select points by finding if they fall in rect
+              // Store indices since JS does not give us pointers 
+              data.selected = [];
+              for (var i=0; i < data.pts.length; i++){
+                if (gfxui.point_in_rect(data.pts[i], selector_rect)){
+                  data.selected.push(i);
+                }
+              }
+              // meaning we need to do some bookeeping to know what the selection is referring to...
+              for (var i=0; i < data.bezier_pts.length; i++){
+                if (gfxui.point_in_rect(data.bezier_pts[i], selector_rect))
+                  data.selected.push(data.pts.length + i);
+              }
+            }
+          
+            // highlight draggers that have been selected
+            for (let i of data.selected){
+              if (i < data.pts.length)
+                gfxui.highlight_dragger(data.pts[i]);
+              else
+                gfxui.highlight_dragger(data.bezier_pts[i-data.pts.length]);
+            }
+
+            // move all selected ones using the mouse delta, if we are dragging any of these
+            if (dragging_points && !selecting){
+              for (let i of data.selected){
+                const d = gfxui.mouse_delta();
+                if (i < data.pts.length){
+                  data.pts[i][0] += d[0];
+                  data.pts[i][1] += d[1];
+                }else{
+                  data.bezier_pts[i - data.pts.length][1] += d[1];
+                  data.bezier_pts[i - data.pts.length][0] += d[0];
+                }
+                
+              }
             }
         }
         
-        gfxui.end();
-
-        // Now actually draw the UI
-        gfxui.draw();
+        gfxui.end(); // By default this will also draw the UI
+        // Otherwise we can separate with
+        // gfxui.end(false);
+        // gfxui.draw();
       }
     </script>
   </head>

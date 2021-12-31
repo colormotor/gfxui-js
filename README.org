@@ -9,3 +9,40 @@ This is losely a javascript port of code I previosuly developed for C++: [[https
 - Icon toolbars
 
 A demo and example code (in page source) can be found here: https://colormotor.github.io/gfxui-js/
+
+* Basics
+The module assumes points are defined as 2d arrays, e.g.
+#+begin_example javascript
+const p = [10, 10];
+#+end_example
+a polyline would then be an array of arrays
+#+begin_example javascript
+const pts = [[10, 10], [30, 100], [30.5, 200]];
+#+end_example
+
+** Importing
+Either import the UI by adding it to the HTML file or import with node with
+#+begin_example javsacript
+const gfxui = require("./gfxui.js");
+#+end_example
+if the file is in a path relative to the script using it or
+#+begin_example javascript
+const gfxui = require("gfxui");
+#+end_example
+if the module is installed with NPM.
+
+** Basic usage example
+A basic usage would be calling
+#+begin_example javascript
+gfxui.init();
+#+end_example
+once. Then each frame (e.g. in ~draw()~ for P5js)
+#+begin_example javascript
+gfxui.begin();
+for (var i = 0; i < pts.length; i++)
+  pts[i] = gfxui.dragger(pts[i]);
+gfxui.end();
+#+end_example
+
+This will create a "dragger" widget for each point in the polyline ~pts~ and update a point if one of the widges is dragged with the mouse. The UI uses an "immediate mode" interface, meaning that widgets are created with function calls that are called each frame.
+Each widget corresponds to one function, and all widget functions must be called between a ~gfxui.begin()~ and a ~gfxui.end()~ pair.

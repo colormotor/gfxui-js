@@ -187,8 +187,10 @@ gfxui.begin = (ctx = null) => {
     ui.ctx = ctx;
 }
 
-gfxui.end = () => {
+gfxui.end = (draw=true) => {
   gfxui.state.clicked = false;
+  if (draw)
+    gfxui.draw();
 }
 
 gfxui.has_focus = () => {
@@ -198,7 +200,6 @@ gfxui.has_focus = () => {
 gfxui.draw = () => {
   ui.ctx.save();
   ui.ctx.resetTransform();
-  // fill_rect(rect_from_circle(gfxui.state.mousepos, 3, '#00FF00'));
   ui.drawlist.map(f => f());
   ui.ctx.restore();
 }
@@ -248,7 +249,7 @@ gfxui.dragger = (pos, selected = false, size = -1) => {
   }
 
   const rect = rect_from_circle(pos, size);
-  const hovered = point_in_rect(gfxui.state.mousepos, rect);
+  const hovered = gfxui.point_in_rect(gfxui.state.mousepos, rect);
 
   if (hovered){
     ui.hovered = id;
@@ -265,6 +266,13 @@ gfxui.dragger = (pos, selected = false, size = -1) => {
   return pos.slice(0);
 }
 
+gfxui.highlight_dragger = (pos, size=-1) => {
+  const cfg = gfxui.cfg;
+  if (size < 0)
+    size = cfg.dragger_size;
+  const rect = rect_from_circle(pos, size);
+  gfxui.draw_dragger(rect, cfg.selected_color);
+}
 
 /**
  * Create a handle widget with adjustable angle and length
@@ -304,7 +312,7 @@ gfxui.length_handle = (thetaLen, pos, startTheta = 0, length_range = [], theta_r
   // Specify object
   const hp = handle_pos(pos, theta + startTheta, len);
   const rect = rect_from_circle(hp, cfg.dragger_size * 0.8);
-  const hovered = point_in_rect(gfxui.state.mousepos, rect);
+  const hovered = gfxui.point_in_rect(gfxui.state.mousepos, rect);
   if (hovered){
     ui.hovered = id;
   }
@@ -493,7 +501,7 @@ gfxui.toolbar = (items, selected = 0, horizontal = false, pos = [0, 0], size = 2
   y += border;
   for (var i = 0; i < items.length; i++) {
     let rect = [[x, y], [x + size + pad, y + size + pad]];
-    const hovered = point_in_rect(gfxui.state.mousepos, rect);
+    const hovered = gfxui.point_in_rect(gfxui.state.mousepos, rect);
 
     if (hovered)
       ui.hovered = id;
@@ -527,15 +535,29 @@ gfxui.make_flip_rect = (a, b) => {
   [Math.max(a[0], b[0]), Math.max(a[1], b[1])]];
 }
 
+gfxui.point_in_rect = (p, rect) => {
+  if (rect.length==0)
+    return false;
+  var [a, b] = rect;
+  if (p[0] >= a[0] && p[0] <= b[0] &&
+    p[1] >= a[1] && p[1] <= b[1])
+    return true;
+  return false;
+}
+
 gfxui.selector = () => {
   gfxui.state.modified = false;
   const none = [];
+
+  // If previously called widgets have grabbred focus do nothing
+  if (gfxui.has_focus())
+    return none;
 
   if (gfxui.state.clicked && !gfxui.has_focus()) {
     ui.selector_dragging = true;
     ui.selector_pos = gfxui.state.mousepos;
     gfxui.state.modified = true;
-    console.log(gfxui.state.mousepos);
+    //console.log(gfxui.state.mousepos);
   }
 
   if (gfxui.state.dragging && ui.selector_dragging) {
@@ -785,12 +807,5 @@ const rect_from_circle = (p, r) => {
   return [[p[0] - rd, p[1] - rd], [p[0] + rd, p[1] + rd]];
 }
 
-const point_in_rect = (p, rect) => {
-  var [a, b] = rect;
-  if (p[0] >= a[0] && p[0] <= b[0] &&
-    p[1] >= a[1] && p[1] <= b[1])
-    return true;
-  return false;
-}
 
 module.exports = gfxui;

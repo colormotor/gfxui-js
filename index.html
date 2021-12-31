@@ -35,29 +35,35 @@
         // Using this will require a web font with icons (here icons.woff)
         // a different font can be passed to gfxui.init()
         data.tool = gfxui.toolbar("ab", data.tool);
+        // ( Calling tooltip after a widget will display a message when the widget is hovered with the mouse )
         gfxui.tooltip("Select pencil to add points to polyline");
 
         // We keep track of wether any point of interest is being dragged for doing multiple selection later
         let dragging_selected_points = false; 
       
-        // Edit points of a polyline with gfxui.dragger
+        // Edit points of a polyline with gfxui.dragger.
+        // The logic here is a bit more complex, because we want to allow dragging multiple points
         for (var i = 0; i < data.pts.length; i++) {
-          // book keeping: If we have previously selected this point don't drag it till later
+          // book keeping: If we have previously selected this point don't drag it till later (avoids "double" drags)
           const selected = data.selected.find(index=>index==i) != undefined;
-          // passing true to "selected" in the dragger will not actually return an updated position
+          // with "selected" set to true the dragger will not actually return an updated position
           // so we can handle it once later on
           data.pts[i] = gfxui.dragger(data.pts[i], selected);
+          // Dragging happened
           if (gfxui.modified()){
             if (selected)
-              dragging_selected_points = true; // drag this point leter if selected
+              // if selected we will drag it later (together with the other selected ones)
+              dragging_selected_points = true; 
             else
+              // Otherwise make sure we unselect (since we clicked/dragged a previously unselected point)
               data.selected = []; // unselect all otherwise
           }
         }
 
-        // and draw the polyline with p5js
+        // draw the polyline with p5js
         // Note that the gfxui widgets will be drawn on top of this, since the actual drawing happens until "gfxui.end()" 
         stroke(0);
+        noFill();
         beginShape();
         strokeWeight(3.0);
         for (const p of data.pts)
@@ -82,6 +88,7 @@
             data.bezier_tangents[i] = gfxui.length_handle(data.bezier_tangents[i], data.bezier_pts[i]);
         }
 
+        // draw it
         bezier(...data.bezier_pts[0],
                data.bezier_pts[0][0] + Math.cos(data.bezier_tangents[0][0]) * data.bezier_tangents[0][1],
                data.bezier_pts[0][1] + Math.sin(data.bezier_tangents[0][0]) * data.bezier_tangents[0][1],
@@ -89,12 +96,12 @@
                data.bezier_pts[1][1] + Math.sin(data.bezier_tangents[1][0]) * data.bezier_tangents[1][1],
                ...data.bezier_pts[1]);
 
-        // We will use canvas now to draw, so save context
+        // We will use canvas from now on to draw, so save context
         ctx.save();
         
         // Canvas arc with handle
-        const p = [300, 500];
-        const r = 150;
+        const p = [300, 500]; // center of arc
+        const r = 150; // radius of arc
         
         data.arc_theta = gfxui.handle(data.arc_theta, p, r);
         gfxui.tooltip("Drag to change angle")
@@ -106,7 +113,7 @@
         ctx.closePath();
         ctx.fill();
         
-        // Affine transform with matrix (orthogonal)
+        // Affine transform with matrix (orthogonal by default)
         data.mat = gfxui.affine(data.mat, 100);
         gfxui.tooltip("press ALT to force uniform scale, SHIFT to keep current proportions");
 
@@ -127,6 +134,8 @@
 
         if (data.tool == 1) {
             // If the pencil tool is selected (1) add points when no other control has focus
+            // No selection in this case
+            data.selected = [];
             if (!gfxui.has_focus() && gfxui.state.clicked)
             data.pts.push(gfxui.state.mousepos);
         } else {

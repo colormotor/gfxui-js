@@ -46,3 +46,5 @@ gfxui.end();
 
 This will create a "dragger" widget for each point in the polyline ~pts~ and update a point if one of the widges is dragged with the mouse. The UI uses an "immediate mode" interface, meaning that widgets are created with function calls that are called each frame.
 Each widget corresponds to one function, and all widget functions must be called between a ~gfxui.begin()~ and a ~gfxui.end()~ pair.
+
+For more usage examples peek into the code [[index.html][here]] and see the corresponding [[https://colormotor.github.io/gfxui-js/][demo]].

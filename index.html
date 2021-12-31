@@ -38,13 +38,21 @@
         gfxui.tooltip("Select pencil to add points to polyline");
 
         // We keep track of wether any point of interest is being dragged for doing multiple selection later
-        let dragging_points = false; 
+        let dragging_selected_points = false; 
       
         // Edit points of a polyline with gfxui.dragger
         for (var i = 0; i < data.pts.length; i++) {
-          data.pts[i] = gfxui.dragger(data.pts[i]);
-          if (gfxui.modified())
-            dragging_points = true;
+          // book keeping: If we have previously selected this point don't drag it till later
+          const selected = data.selected.find(index=>index==i) != undefined;
+          // passing true to "selected" in the dragger will not actually return an updated position
+          // so we can handle it once later on
+          data.pts[i] = gfxui.dragger(data.pts[i], selected);
+          if (gfxui.modified()){
+            if (selected)
+              dragging_selected_points = true; // drag this point leter if selected
+            else
+              data.selected = []; // unselect all otherwise
+          }
         }
 
         // and draw the polyline with p5js
@@ -58,9 +66,16 @@
 
         // Bezier curve using draggers for its endpoints
         for (var i = 0; i < data.bezier_pts.length; i++) {
-          data.bezier_pts[i] = gfxui.dragger(data.bezier_pts[i]);
-          if (gfxui.modified()) // Also allow multiple-dragging these
-            dragging_points = true;
+          // we want to multi-select also these points so
+          // book keeping again (with offset with respect to previous points)
+          const selected = data.selected.find(index=>(index - data.pts.length)==i) != undefined;
+          data.bezier_pts[i] = gfxui.dragger(data.bezier_pts[i], selected);
+          if (gfxui.modified()){
+            if (selected)
+              dragging_selected_points = true; // drag this point leter if selected
+            else
+              data.selected = []; // unselect all otherwise
+          }
         }
         // and length_handle for the control points
         for (var i = 0; i < data.bezier_tangents.length; i++) {
@@ -116,7 +131,7 @@
             data.pts.push(gfxui.state.mousepos);
         } else {
             // Otherwise draw a selector. This only does something if no other previous called widget grabbed focus.
-            // The logic here is a bit more bloated:
+            // The logic here is a bit more bloated (see also dragger calls earlier)
             // Get the selector rect
             let selector_rect = gfxui.selector();
             // And modified() tells us if we are actually selecting
@@ -146,10 +161,10 @@
                 gfxui.highlight_dragger(data.bezier_pts[i-data.pts.length]);
             }
 
-            // move all selected ones using the mouse delta, if we are dragging any of these
-            if (dragging_points && !selecting){
+            // move all selected ones using the mouse delta, if the previous dragger calls tell us we are dragging...
+            if (dragging_selected_points && !selecting){
               for (let i of data.selected){
-                const d = gfxui.mouse_delta();
+                const d = gfxui.dragger_delta(); // Use this, not mouse_delta (broken)
                 if (i < data.pts.length){
                   data.pts[i][0] += d[0];
                   data.pts[i][1] += d[1];
@@ -157,7 +172,6 @@
                   data.bezier_pts[i - data.pts.length][1] += d[1];
                   data.bezier_pts[i - data.pts.length][0] += d[0];
                 }
-                
               }
             }
         }

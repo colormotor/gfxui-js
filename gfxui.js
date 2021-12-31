@@ -36,7 +36,8 @@ gfxui.state = {
   shift_key: false,
   alt_key: false,
   mousepos: [0, 0],
-  mouse_delta: [0, 0]
+  mouse_delta: [0, 0],
+  dragger_delta: [0, 0]
 }
 
 /// Internal state
@@ -52,15 +53,11 @@ const ui = {
 }
 
 const _mousemove = (event) => {
-  if (ui.ctx != null) {
     var rect = ui.ctx.canvas.getBoundingClientRect();
-    gfxui.state.mouse_delta = [event.offsetX - gfxui.state.mousepos[0],
-    event.offsetY - gfxui.state.mousepos[1]];
+    // This does not seem to work correctly
+    gfxui.state.mouse_delta = [event.movementX, event.movementY];
     gfxui.state.mousepos = [event.offsetX, event.offsetY];
-    // event.preventDefault();
-    // event.stopPropagation();
     event.returnValue = false;
-  }
 }
 
 const _mousedown = (event) => {
@@ -81,6 +78,7 @@ const _mouseup = (event) => {
   if (event.which) {
     gfxui.state.dragging = false;
     ui.active = null;
+    gfxui.state.mouse_delta = [0, 0];
     // event.preventDefault();
     // event.stopPropagation();
     event.returnValue = false;
@@ -144,6 +142,12 @@ gfxui.mouse_pos = () => {
   return gfxui.state.mousepos;
 }
 
+/**
+ * @returns dragger delta
+ */
+gfxui.dragger_delta = () => {
+  return gfxui.state.dragger_delta;
+}
 
 
 /** Initialize UI */
@@ -180,7 +184,7 @@ gfxui.begin = (ctx = null) => {
   ui.drawlist = [];
   //ui.active = null;
   ui.hovered = null;
-
+  gfxui.state.dragger_delta = [0, 0];
   if (ctx == null)
     ui.ctx = document.getElementById('canvas').getContext('2d');
   else
@@ -244,7 +248,9 @@ gfxui.dragger = (pos, selected = false, size = -1) => {
   // handle active object
   // This must be done before processing hovered status
   if (gfxui.state.dragging && id == ui.active) {
-    pos = gfxui.state.mousepos;
+    gfxui.state.dragger_delta = vsub(gfxui.state.mousepos, pos);
+    if (!selected)
+      pos = gfxui.state.mousepos;
     gfxui.state.modified = true;
   }
 
@@ -360,7 +366,7 @@ gfxui.handle = (theta, pos, length, startTheta = 0, theta_range = [], selected =
  * @param {bool} selected mark this widget as selected
  * @returns Updated transform
  */
-gfxui.affine = (t, scale = 1, ortho = true, selected) => {
+gfxui.affine = (t, scale = 1, ortho = true, selected=false) => {
   gfxui.state.modified = false;
 
   var pmod = false, xmod = false, ymod = false;

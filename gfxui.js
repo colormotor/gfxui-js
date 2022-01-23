@@ -57,7 +57,7 @@ const _mousemove = (event) => {
     // This does not seem to work correctly
     gfxui.state.mouse_delta = [event.movementX, event.movementY];
     gfxui.state.mousepos = [event.offsetX, event.offsetY];
-    event.returnValue = false;
+    // event.returnValue = false;
 }
 
 const _mousedown = (event) => {
@@ -70,7 +70,7 @@ const _mousedown = (event) => {
     gfxui.state.clicked = true;
     // event.preventDefault();
     // event.stopPropagation();
-    event.returnValue = false;
+    // event.returnValue = false;
   }
 }
 
@@ -81,7 +81,7 @@ const _mouseup = (event) => {
     gfxui.state.mouse_delta = [0, 0];
     // event.preventDefault();
     // event.stopPropagation();
-    event.returnValue = false;
+    // event.returnValue = false;
   }
 }
 
